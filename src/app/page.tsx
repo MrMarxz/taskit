@@ -290,7 +290,7 @@ function DeleteTaskDialog({
         <AlertDialogHeader>
           <AlertDialogTitle className="text-xl">Delete this task?</AlertDialogTitle>
           <AlertDialogDescription className="text-base text-gray-600 mt-2">
-            This action cannot be undone. The task "{task.title}" will be permanently removed from your project.
+            {`This action cannot be undone. The task "${task.title}" will be permanently removed from your project.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-3 mt-6">
