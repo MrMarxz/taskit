@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import {
   DndContext,
   KeyboardSensor,
@@ -41,7 +42,7 @@ interface DroppableSectionProps {
   title: string;
   items: CardContent[];
   isOver?: boolean;
-  onDrop?: (item: CardContent, fromSection: string, toSection: string) => void;
+  onCreateTask: (title: string) => void;
 }
 
 interface Sections {
@@ -65,7 +66,7 @@ function DraggableCard({ id, content }: DraggableCardProps) {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition, // Disable transition while dragging for smoother movement
+    transition: isDragging ? 'none' : transition,
     opacity: isDragging ? 0.4 : 1,
   };
 
@@ -97,8 +98,65 @@ function DragOverlayCard({ content }: { content: CardContent }) {
   );
 }
 
+// Create Task Card Component
+function CreateTaskCard({ onCreateTask }: { onCreateTask: (title: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (title.trim()) {
+      onCreateTask(title.trim());
+      setTitle('');
+      setIsEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e);
+    } else if (e.key === 'Escape') {
+      setTitle('');
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="bg-white border-2 border-blue-300 rounded-lg p-3 shadow-sm">
+        <form onSubmit={handleSubmit}>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={() => {
+              if (!title.trim()) {
+                setIsEditing(false);
+              }
+            }}
+            placeholder="Enter task title..."
+            className="w-full text-gray-900 font-medium bg-transparent border-none outline-none placeholder-gray-400 text-sm"
+            autoFocus
+          />
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setIsEditing(true)}
+      className="w-full bg-gray-50 rounded-lg p-3 text-gray-500 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-600 transition-all duration-200 flex items-center justify-start gap-2 group"
+    >
+      <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
+      <span className="text-sm font-medium">Create</span>
+    </button>
+  );
+}
+
 // Droppable Section Component
-function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
+function DroppableSection({ id, title, items, isOver, onCreateTask }: DroppableSectionProps) {
   const { setNodeRef } = useDroppable({
     id: id,
   });
@@ -113,34 +171,25 @@ function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
       `}
     >
       <h2 className="text-2xl font-semibold mb-4 text-slate-700">{title}</h2>
-      <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
-        <div
-          className={`
-            space-y-3 h-[calc(100vh-8rem)] p-4 rounded-lg border-2 border-dashed overflow-auto
-            transition-all duration-200 ease-out
-            ${isOver
-              ? 'border-blue-400 bg-blue-50/50 scale-102'
-              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-            }
-          `}
-        >
+      <div
+        className={`
+          h-[calc(100vh-8rem)] rounded-lg border-2 border-dashed overflow-auto p-4
+          transition-all duration-200 ease-out space-y-3
+          ${isOver
+            ? 'border-blue-400 bg-blue-50/50 scale-102'
+            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+          }
+        `}
+      >
+        <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
           {items.map((item) => (
             <DraggableCard key={item.id} id={item.id} content={item} />
           ))}
-          {items.length === 0 && (
-            <div className={`
-              flex items-center justify-center h-32 text-sm font-medium rounded-lg
-              transition-all duration-200
-              ${isOver
-                ? 'text-blue-600 bg-blue-100/50'
-                : 'text-gray-400 bg-gray-100/50'
-              }
-            `}>
-              {isOver ? 'Drop here!' : 'Drop items here'}
-            </div>
-          )}
-        </div>
-      </SortableContext>
+        </SortableContext>
+
+        {/* Create new task card - as the last item in the list */}
+        <CreateTaskCard onCreateTask={onCreateTask} />
+      </div>
     </div>
   );
 }
@@ -167,7 +216,7 @@ export default function DragDropSections() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // Reduced from 8px for more responsive dragging
+        distance: 3,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -175,27 +224,39 @@ export default function DragDropSections() {
     })
   );
 
+  // Function to create a new task in a specific section
+  const createNewTask = (sectionId: SectionKey, title: string): void => {
+    const newTask: CardContent = {
+      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: title,
+      description: 'New task created'
+    };
+
+    setSections(prev => ({
+      ...prev,
+      [sectionId]: [...prev[sectionId], newTask]
+    }));
+
+    console.log(`Created new task "${title}" in ${sectionId}`);
+  };
+
   // Custom functions to run when cards are moved to specific sections
   const onMoveToTodo = (item: CardContent, fromSection: string): void => {
     console.log(`Moving "${item.title}" back to Todo from ${fromSection}`);
-    // Add your custom logic here - e.g., update database, send notifications, etc.
   };
 
   const onMoveToInProgress = (item: CardContent, fromSection: string): void => {
     console.log(`Starting work on "${item.title}" from ${fromSection}`);
-    // Add your custom logic here - e.g., start timer, assign to user, etc.
   };
 
   const onMoveToDone = (item: CardContent, fromSection: string): void => {
     console.log(`Completed "${item.title}" from ${fromSection}`);
-    // Add your custom logic here - e.g., send completion notification, update analytics, etc.
   };
 
   const handleDragStart = (event: DragStartEvent): void => {
     const { active } = event;
     const activeId = active.id as string;
 
-    // Find the active card across all sections
     const activeSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
       sections[sectionId].some(item => item.id === activeId)
     );
@@ -221,19 +282,15 @@ export default function DragDropSections() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Find which section the dragged item is from
     const activeSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
       sections[sectionId].some(item => item.id === activeId)
     );
 
-    // Determine the target section
     let overSection: SectionKey | undefined;
 
-    // First, check if we're dropping directly on a section
     if (['section1', 'section2', 'section3'].includes(overId)) {
       overSection = overId as SectionKey;
     } else {
-      // If dropping on a card, find which section it belongs to
       overSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
         sections[sectionId].some(item => item.id === overId)
       );
@@ -245,7 +302,6 @@ export default function DragDropSections() {
     if (!activeItem) return;
 
     if (activeSection === overSection) {
-      // Reordering within the same section
       if (overId !== activeId) {
         const activeIndex = sections[activeSection].findIndex(item => item.id === activeId);
         const overIndex = sections[overSection].findIndex(item => item.id === overId);
@@ -258,14 +314,12 @@ export default function DragDropSections() {
         }
       }
     } else {
-      // Moving between sections
       setSections(prev => ({
         ...prev,
         [activeSection]: prev[activeSection].filter(item => item.id !== activeId),
         [overSection]: [...prev[overSection], activeItem],
       }));
 
-      // Run custom functions based on destination section
       const sectionMap: Record<SectionKey, string> = {
         section1: 'Todo',
         section2: 'In Progress',
@@ -304,18 +358,21 @@ export default function DragDropSections() {
           title="To Do"
           items={sections.section1}
           isOver={overId === 'section1'}
+          onCreateTask={(title) => createNewTask('section1', title)}
         />
         <DroppableSection
           id="section2"
           title="In Progress"
           items={sections.section2}
           isOver={overId === 'section2'}
+          onCreateTask={(title) => createNewTask('section2', title)}
         />
         <DroppableSection
           id="section3"
           title="Done"
           items={sections.section3}
           isOver={overId === 'section3'}
+          onCreateTask={(title) => createNewTask('section3', title)}
         />
       </div>
 
