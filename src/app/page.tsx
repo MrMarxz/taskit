@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import {
   DndContext,
@@ -24,34 +24,37 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { api } from '@/trpc/react';
 
-// Type definitions
-interface CardContent {
-  id: string;
+// Type definitions based on Prisma models
+interface Task {
+  id: number;
   title: string;
-  description: string;
+  description: string | null;
+  statusId: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface TaskStatus {
+  id: number;
+  name: string;
+  description: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  Task: Task[];
 }
 
 interface DraggableCardProps {
-  id: string;
-  content: CardContent;
+  id: number;
+  content: Task;
 }
 
 interface DroppableSectionProps {
-  id: SectionKey;
-  title: string;
-  items: CardContent[];
+  status: TaskStatus;
   isOver?: boolean;
-  onCreateTask: (title: string) => void;
+  onCreateTask: (title: string, statusId: number) => void;
 }
-
-interface Sections {
-  section1: CardContent[];
-  section2: CardContent[];
-  section3: CardContent[];
-}
-
-type SectionKey = keyof Sections;
 
 // Draggable Card Component
 function DraggableCard({ id, content }: DraggableCardProps) {
@@ -62,7 +65,7 @@ function DraggableCard({ id, content }: DraggableCardProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id: id.toString() });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -83,30 +86,37 @@ function DraggableCard({ id, content }: DraggableCardProps) {
       `}
     >
       <h3 className="font-medium text-gray-900">{content.title}</h3>
-      <p className="text-gray-600 text-sm mt-1">{content.description}</p>
+      {content.description && (
+        <p className="text-gray-600 text-sm mt-1">{content.description}</p>
+      )}
     </div>
   );
 }
 
 // Overlay Card Component (shown while dragging)
-function DragOverlayCard({ content }: { content: CardContent }) {
+function DragOverlayCard({ content }: { content: Task }) {
   return (
     <div className="bg-white border-2 border-blue-400 rounded-lg p-4 shadow-2xl rotate-3 scale-105 opacity-95">
       <h3 className="font-medium text-gray-900">{content.title}</h3>
-      <p className="text-gray-600 text-sm mt-1">{content.description}</p>
+      {content.description && (
+        <p className="text-gray-600 text-sm mt-1">{content.description}</p>
+      )}
     </div>
   );
 }
 
 // Create Task Card Component
-function CreateTaskCard({ onCreateTask }: { onCreateTask: (title: string) => void }) {
+function CreateTaskCard({ onCreateTask, statusId }: { 
+  onCreateTask: (title: string, statusId: number) => void;
+  statusId: number;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
-      onCreateTask(title.trim());
+      onCreateTask(title.trim(), statusId);
       setTitle('');
       setIsEditing(false);
     }
@@ -123,7 +133,7 @@ function CreateTaskCard({ onCreateTask }: { onCreateTask: (title: string) => voi
 
   if (isEditing) {
     return (
-      <div className="bg-white border-2 border-blue-300 rounded-lg p-3 shadow-sm">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
         <form onSubmit={handleSubmit}>
           <input
             type="text"
@@ -147,7 +157,7 @@ function CreateTaskCard({ onCreateTask }: { onCreateTask: (title: string) => voi
   return (
     <button
       onClick={() => setIsEditing(true)}
-      className="w-full bg-gray-50 rounded-lg p-3 text-gray-500 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-600 transition-all duration-200 flex items-center justify-start gap-2 group"
+      className="w-full bg-gray-50 rounded-lg p-3 text-gray-500 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200 flex items-center justify-start gap-2 group"
     >
       <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
       <span className="text-sm font-medium">Create</span>
@@ -156,9 +166,9 @@ function CreateTaskCard({ onCreateTask }: { onCreateTask: (title: string) => voi
 }
 
 // Droppable Section Component
-function DroppableSection({ id, title, items, isOver, onCreateTask }: DroppableSectionProps) {
+function DroppableSection({ status, isOver, onCreateTask }: DroppableSectionProps) {
   const { setNodeRef } = useDroppable({
-    id: id,
+    id: status.id.toString(),
   });
 
   return (
@@ -170,7 +180,11 @@ function DroppableSection({ id, title, items, isOver, onCreateTask }: DroppableS
         ${isOver ? 'bg-blue-50 border-blue-300' : ''}
       `}
     >
-      <h2 className="text-2xl font-semibold mb-4 text-slate-700">{title}</h2>
+      <h2 className="text-2xl font-semibold mb-4 text-slate-700">{status.name}</h2>
+      {status.description && (
+        <p className="text-gray-600 text-sm mb-4">{status.description}</p>
+      )}
+      
       <div
         className={`
           h-[calc(100vh-8rem)] rounded-lg border-2 border-dashed overflow-auto p-4
@@ -181,14 +195,30 @@ function DroppableSection({ id, title, items, isOver, onCreateTask }: DroppableS
           }
         `}
       >
-        <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item) => (
-            <DraggableCard key={item.id} id={item.id} content={item} />
+        <SortableContext 
+          items={status.Task.map(task => task.id.toString())} 
+          strategy={verticalListSortingStrategy}
+        >
+          {status.Task.length === 0 && (
+            <div className={`
+              flex items-center justify-center h-32 text-sm font-medium rounded-lg mb-3
+              transition-all duration-200
+              ${isOver
+                ? 'text-blue-600 bg-blue-100/50'
+                : 'text-gray-400 bg-gray-100/50'
+              }
+            `}>
+              {isOver ? 'Drop here!' : 'Drop tasks here'}
+            </div>
+          )}
+          
+          {status.Task.map((task) => (
+            <DraggableCard key={task.id} id={task.id} content={task} />
           ))}
         </SortableContext>
 
         {/* Create new task card - as the last item in the list */}
-        <CreateTaskCard onCreateTask={onCreateTask} />
+        <CreateTaskCard onCreateTask={onCreateTask} statusId={status.id} />
       </div>
     </div>
   );
@@ -196,22 +226,26 @@ function DroppableSection({ id, title, items, isOver, onCreateTask }: DroppableS
 
 // Main Component
 export default function DragDropSections() {
-  const [sections, setSections] = useState<Sections>({
-    section1: [
-      { id: 'card-1', title: 'Task 1', description: 'This is the first task' },
-      { id: 'card-2', title: 'Task 2', description: 'This is the second task' },
-    ],
-    section2: [
-      { id: 'card-3', title: 'Task 3', description: 'This is the third task' },
-    ],
-    section3: [
-      { id: 'card-4', title: 'Task 4', description: 'This is the fourth task' },
-      { id: 'card-5', title: 'Task 5', description: 'This is the fifth task' },
-    ],
-  });
-
-  const [activeCard, setActiveCard] = useState<CardContent | null>(null);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+
+  // tRPC queries and utils
+  const { data: taskStatuses, refetch: refetchStatuses } = api.tasks.getAllTaskStatuses.useQuery();
+  const utils = api.useUtils();
+  
+  // tRPC mutations with optimistic updates
+  const createTaskMutation = api.tasks.createTask.useMutation({
+    onSuccess: () => {
+      refetchStatuses();
+    },
+  });
+  
+  const updateTaskStatusMutation = api.tasks.updateTaskStatus.useMutation({
+    onError: () => {
+      // If the mutation fails, refetch to restore correct state
+      refetchStatuses();
+    },
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -224,46 +258,33 @@ export default function DragDropSections() {
     })
   );
 
-  // Function to create a new task in a specific section
-  const createNewTask = (sectionId: SectionKey, title: string): void => {
-    const newTask: CardContent = {
-      id: `card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: title,
-      description: 'New task created'
-    };
-
-    setSections(prev => ({
-      ...prev,
-      [sectionId]: [...prev[sectionId], newTask]
-    }));
-
-    console.log(`Created new task "${title}" in ${sectionId}`);
-  };
-
-  // Custom functions to run when cards are moved to specific sections
-  const onMoveToTodo = (item: CardContent, fromSection: string): void => {
-    console.log(`Moving "${item.title}" back to Todo from ${fromSection}`);
-  };
-
-  const onMoveToInProgress = (item: CardContent, fromSection: string): void => {
-    console.log(`Starting work on "${item.title}" from ${fromSection}`);
-  };
-
-  const onMoveToDone = (item: CardContent, fromSection: string): void => {
-    console.log(`Completed "${item.title}" from ${fromSection}`);
+  // Function to create a new task
+  const createNewTask = async (title: string, statusId: number): Promise<void> => {
+    try {
+      await createTaskMutation.mutateAsync({
+        title,
+        description: null,
+        statusId,
+      });
+      console.log(`Created new task "${title}" in status ${statusId}`);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+    }
   };
 
   const handleDragStart = (event: DragStartEvent): void => {
     const { active } = event;
-    const activeId = active.id as string;
+    const activeId = parseInt(active.id as string);
 
-    const activeSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
-      sections[sectionId].some(item => item.id === activeId)
-    );
-
-    if (activeSection) {
-      const activeItem = sections[activeSection].find(item => item.id === activeId);
-      setActiveCard(activeItem || null);
+    // Find the active task across all statuses
+    if (taskStatuses) {
+      for (const status of taskStatuses) {
+        const task = status.Task.find(t => t.id === activeId);
+        if (task) {
+          setActiveTask(task);
+          break;
+        }
+      }
     }
   };
 
@@ -274,75 +295,86 @@ export default function DragDropSections() {
 
   const handleDragEnd = (event: DragEndEvent): void => {
     const { active, over } = event;
-    setActiveCard(null);
+    setActiveTask(null);
     setOverId(null);
 
-    if (!over) return;
+    if (!over || !taskStatuses) return;
 
-    const activeId = active.id as string;
+    const activeTaskId = parseInt(active.id as string);
     const overId = over.id as string;
 
-    const activeSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
-      sections[sectionId].some(item => item.id === activeId)
-    );
+    // Find the current status of the dragged task
+    let currentStatus: TaskStatus | undefined;
+    let draggedTask: Task | undefined;
+    
+    for (const status of taskStatuses) {
+      const task = status.Task.find(t => t.id === activeTaskId);
+      if (task) {
+        currentStatus = status;
+        draggedTask = task;
+        break;
+      }
+    }
 
-    let overSection: SectionKey | undefined;
+    if (!currentStatus || !draggedTask) return;
 
-    if (['section1', 'section2', 'section3'].includes(overId)) {
-      overSection = overId as SectionKey;
+    // Determine target status
+    let targetStatusId: number;
+    
+    // Check if dropping directly on a status
+    const directStatusMatch = taskStatuses.find(s => s.id.toString() === overId);
+    if (directStatusMatch) {
+      targetStatusId = directStatusMatch.id;
     } else {
-      overSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
-        sections[sectionId].some(item => item.id === overId)
+      // Find status by task
+      const targetStatus = taskStatuses.find(status => 
+        status.Task.some(task => task.id.toString() === overId)
       );
+      if (!targetStatus) return;
+      targetStatusId = targetStatus.id;
     }
 
-    if (!activeSection || !overSection) return;
+    // Only proceed if the status actually changed
+    if (currentStatus.id === targetStatusId) return;
 
-    const activeItem = sections[activeSection].find(item => item.id === activeId);
-    if (!activeItem) return;
-
-    if (activeSection === overSection) {
-      if (overId !== activeId) {
-        const activeIndex = sections[activeSection].findIndex(item => item.id === activeId);
-        const overIndex = sections[overSection].findIndex(item => item.id === overId);
-
-        if (activeIndex !== overIndex) {
-          setSections(prev => ({
-            ...prev,
-            [activeSection]: arrayMove(prev[activeSection], activeIndex, overIndex),
-          }));
+    // Update the cache optimistically
+    utils.tasks.getAllTaskStatuses.setData(undefined, (oldData) => {
+      if (!oldData) return oldData;
+      
+      return oldData.map(status => {
+        if (status.id === currentStatus.id) {
+          // Remove task from current status
+          return {
+            ...status,
+            Task: status.Task.filter(task => task.id !== activeTaskId)
+          };
+        } else if (status.id === targetStatusId) {
+          // Add task to target status
+          return {
+            ...status,
+            Task: [...status.Task, { ...draggedTask, statusId: targetStatusId }]
+          };
         }
-      }
-    } else {
-      setSections(prev => ({
-        ...prev,
-        [activeSection]: prev[activeSection].filter(item => item.id !== activeId),
-        [overSection]: [...prev[overSection], activeItem],
-      }));
+        return status;
+      });
+    });
 
-      const sectionMap: Record<SectionKey, string> = {
-        section1: 'Todo',
-        section2: 'In Progress',
-        section3: 'Done'
-      };
+    // Then perform the actual mutation
+    updateTaskStatusMutation.mutate({
+      taskId: activeTaskId,
+      statusId: targetStatusId,
+    });
 
-      const fromSectionName = sectionMap[activeSection];
-
-      switch (overSection) {
-        case 'section1':
-          onMoveToTodo(activeItem, fromSectionName);
-          break;
-        case 'section2':
-          onMoveToInProgress(activeItem, fromSectionName);
-          break;
-        case 'section3':
-          onMoveToDone(activeItem, fromSectionName);
-          break;
-        default:
-          console.log(`Item moved to unknown section: ${overSection}`);
-      }
-    }
+    console.log(`Moved task ${activeTaskId} from status ${currentStatus.id} to ${targetStatusId}`);
   };
+
+  if (!taskStatuses) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <DndContext
@@ -353,31 +385,18 @@ export default function DragDropSections() {
       onDragEnd={handleDragEnd}
     >
       <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <DroppableSection
-          id="section1"
-          title="To Do"
-          items={sections.section1}
-          isOver={overId === 'section1'}
-          onCreateTask={(title) => createNewTask('section1', title)}
-        />
-        <DroppableSection
-          id="section2"
-          title="In Progress"
-          items={sections.section2}
-          isOver={overId === 'section2'}
-          onCreateTask={(title) => createNewTask('section2', title)}
-        />
-        <DroppableSection
-          id="section3"
-          title="Done"
-          items={sections.section3}
-          isOver={overId === 'section3'}
-          onCreateTask={(title) => createNewTask('section3', title)}
-        />
+        {taskStatuses.map((status) => (
+          <DroppableSection
+            key={status.id}
+            status={status}
+            isOver={overId === status.id.toString()}
+            onCreateTask={createNewTask}
+          />
+        ))}
       </div>
 
       <DragOverlay>
-        {activeCard ? <DragOverlayCard content={activeCard} /> : null}
+        {activeTask ? <DragOverlayCard content={activeTask} /> : null}
       </DragOverlay>
     </DndContext>
   );
