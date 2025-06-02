@@ -32,27 +32,27 @@ const sidebarItems = [
     href: '/backlog',
     icon: List
   },
-  {
-    title: 'Projects',
-    href: '/projects',
-    icon: FolderOpen
-  },
-  {
-    title: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3
-  }
+  // {
+  //   title: 'Projects',
+  //   href: '/projects',
+  //   icon: FolderOpen
+  // },
+  // {
+  //   title: 'Analytics',
+  //   href: '/analytics',
+  //   icon: BarChart3
+  // }
 ]
 
 const bottomItems = [
   {
     title: 'Profile',
-    href: '/profile',
+    href: '#profile',
     icon: User
   },
   {
     title: 'Settings',
-    href: '/settings',
+    href: '#settings',
     icon: Settings
   }
 ]
