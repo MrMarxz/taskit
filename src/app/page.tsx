@@ -104,7 +104,7 @@ function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
   });
 
   return (
-    <div 
+    <div
       ref={setNodeRef}
       className={`
         flex-1 min-h-screen border-r border-gray-300 last:border-r-0 p-6 
@@ -114,12 +114,12 @@ function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
     >
       <h2 className="text-xl font-semibold mb-4 text-gray-800">{title}</h2>
       <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
-        <div 
+        <div
           className={`
             space-y-3 min-h-96 p-4 rounded-lg border-2 border-dashed 
             transition-all duration-200 ease-out
-            ${isOver 
-              ? 'border-blue-400 bg-blue-50/50 scale-102' 
+            ${isOver
+              ? 'border-blue-400 bg-blue-50/50 scale-102'
               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
             }
           `}
@@ -131,8 +131,8 @@ function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
             <div className={`
               flex items-center justify-center h-32 text-sm font-medium rounded-lg
               transition-all duration-200
-              ${isOver 
-                ? 'text-blue-600 bg-blue-100/50' 
+              ${isOver
+                ? 'text-blue-600 bg-blue-100/50'
                 : 'text-gray-400 bg-gray-100/50'
               }
             `}>
@@ -194,12 +194,12 @@ export default function DragDropSections() {
   const handleDragStart = (event: DragStartEvent): void => {
     const { active } = event;
     const activeId = active.id as string;
-    
+
     // Find the active card across all sections
     const activeSection = (Object.keys(sections) as SectionKey[]).find(sectionId =>
       sections[sectionId].some(item => item.id === activeId)
     );
-    
+
     if (activeSection) {
       const activeItem = sections[activeSection].find(item => item.id === activeId);
       setActiveCard(activeItem || null);
@@ -228,7 +228,7 @@ export default function DragDropSections() {
 
     // Determine the target section
     let overSection: SectionKey | undefined;
-    
+
     // First, check if we're dropping directly on a section
     if (['section1', 'section2', 'section3'].includes(overId)) {
       overSection = overId as SectionKey;
@@ -268,12 +268,12 @@ export default function DragDropSections() {
       // Run custom functions based on destination section
       const sectionMap: Record<SectionKey, string> = {
         section1: 'Todo',
-        section2: 'In Progress', 
+        section2: 'In Progress',
         section3: 'Done'
       };
 
       const fromSectionName = sectionMap[activeSection];
-      
+
       switch (overSection) {
         case 'section1':
           onMoveToTodo(activeItem, fromSectionName);
@@ -318,7 +318,7 @@ export default function DragDropSections() {
           isOver={overId === 'section3'}
         />
       </div>
-      
+
       <DragOverlay>
         {activeCard ? <DragOverlayCard content={activeCard} /> : null}
       </DragOverlay>
