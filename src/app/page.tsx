@@ -112,11 +112,11 @@ function DroppableSection({ id, title, items, isOver }: DroppableSectionProps) {
         ${isOver ? 'bg-blue-50 border-blue-300' : ''}
       `}
     >
-      <h2 className="text-xl font-semibold mb-4 text-gray-800">{title}</h2>
+      <h2 className="text-2xl font-semibold mb-4 text-slate-700">{title}</h2>
       <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
         <div
           className={`
-            space-y-3 min-h-96 p-4 rounded-lg border-2 border-dashed 
+            space-y-3 h-[calc(100vh-8rem)] p-4 rounded-lg border-2 border-dashed overflow-auto
             transition-all duration-200 ease-out
             ${isOver
               ? 'border-blue-400 bg-blue-50/50 scale-102'
