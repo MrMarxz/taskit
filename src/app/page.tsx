@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +52,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { api } from '@/trpc/react';
+import { api } from '@/trpc/react'; // Adjust import path as needed
 
 // Type definitions based on Prisma models
 interface Task {
@@ -72,6 +77,7 @@ interface DraggableCardProps {
   id: number;
   content: Task;
   onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }
 
 interface DroppableSectionProps {
@@ -79,10 +85,11 @@ interface DroppableSectionProps {
   isOver?: boolean;
   onCreateTask: (title: string, statusId: number) => void;
   onEditTask: (task: Task) => void;
+  onDeleteTask: (task: Task) => void;
 }
 
 // Draggable Card Component
-function DraggableCard({ id, content, onEdit }: DraggableCardProps) {
+function DraggableCard({ id, content, onEdit, onDelete }: DraggableCardProps) {
   const {
     attributes,
     listeners,
@@ -98,9 +105,12 @@ function DraggableCard({ id, content, onEdit }: DraggableCardProps) {
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEdit = () => {
     onEdit(content);
+  };
+
+  const handleDelete = () => {
+    onDelete(content);
   };
 
   return (
@@ -120,13 +130,32 @@ function DraggableCard({ id, content, onEdit }: DraggableCardProps) {
             <p className="text-gray-600 text-sm mt-1 break-words">{content.description}</p>
           )}
         </div>
-        <button
-          onClick={handleEditClick}
-          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-100 rounded flex-shrink-0"
-          title="Edit task"
-        >
-          <Pencil className="w-4 h-4 text-gray-500" />
-        </button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 h-8 w-8 p-0 flex-shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="w-4 h-4 text-gray-500" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="cursor-pointer text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -145,18 +174,16 @@ function DragOverlayCard({ content }: { content: Task }) {
 }
 
 // Edit Task Dialog Component
-function EditTaskDialog({ 
-  task, 
-  isOpen, 
-  onClose, 
-  onSave, 
-  onDelete 
-}: { 
+function EditTaskDialog({
+  task,
+  isOpen,
+  onClose,
+  onSave
+}: {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (id: number, title: string, description: string | null) => void;
-  onDelete: (id: number) => void;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -177,11 +204,6 @@ function EditTaskDialog({
     }
   };
 
-  const handleDelete = () => {
-    onDelete(task.id);
-    onClose();
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden">
@@ -193,7 +215,7 @@ function EditTaskDialog({
             Make changes to your task here. All fields are automatically saved.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="px-8 py-6 space-y-6">
           <div className="space-y-3">
             <Label htmlFor="title" className="text-sm font-semibold text-gray-700">
@@ -207,7 +229,7 @@ function EditTaskDialog({
               placeholder="Enter your task title..."
             />
           </div>
-          
+
           <div className="space-y-3">
             <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
               Description
@@ -223,41 +245,15 @@ function EditTaskDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-8 py-6 bg-gray-50 border-t flex-row justify-between items-center">
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="lg" className="h-11 px-6">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Task
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="sm:max-w-[500px]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-xl">Delete this task?</AlertDialogTitle>
-                <AlertDialogDescription className="text-base text-gray-600 mt-2">
-                  This action cannot be undone. The task "{task.title}" will be permanently removed from your project.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter className="gap-3 mt-6">
-                <AlertDialogCancel className="h-11 px-6">Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDelete}
-                  className="h-11 px-6 bg-red-600 hover:bg-red-700"
-                >
-                  Delete Task
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
+        <DialogFooter className="px-8 py-6 bg-gray-50 border-t flex-row justify-end items-center">
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose} size="lg" className="h-11 px-6">
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={!title.trim()}
-              size="lg" 
+              size="lg"
               className="h-11 px-8 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
             >
               Save Changes
@@ -269,8 +265,50 @@ function EditTaskDialog({
   );
 }
 
+// Delete Confirmation Dialog Component
+function DeleteTaskDialog({
+  task,
+  isOpen,
+  onClose,
+  onDelete
+}: {
+  task: Task | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onDelete: (id: number) => void;
+}) {
+  if (!task) return null;
+
+  const handleDelete = () => {
+    onDelete(task.id);
+    onClose();
+  };
+
+  return (
+    <AlertDialog open={isOpen} onOpenChange={onClose}>
+      <AlertDialogContent className="sm:max-w-[500px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-xl">Delete this task?</AlertDialogTitle>
+          <AlertDialogDescription className="text-base text-gray-600 mt-2">
+            This action cannot be undone. The task "{task.title}" will be permanently removed from your project.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="gap-3 mt-6">
+          <AlertDialogCancel className="h-11 px-6">Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDelete}
+            className="h-11 px-6 bg-red-600 hover:bg-red-700"
+          >
+            Delete Task
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // Create Task Card Component
-function CreateTaskCard({ onCreateTask, statusId }: { 
+function CreateTaskCard({ onCreateTask, statusId }: {
   onCreateTask: (title: string, statusId: number) => void;
   statusId: number;
 }) {
@@ -330,7 +368,7 @@ function CreateTaskCard({ onCreateTask, statusId }: {
 }
 
 // Droppable Section Component
-function DroppableSection({ status, isOver, onCreateTask, onEditTask }: DroppableSectionProps) {
+function DroppableSection({ status, isOver, onCreateTask, onEditTask, onDeleteTask }: DroppableSectionProps) {
   const { setNodeRef } = useDroppable({
     id: status.id.toString(),
   });
@@ -348,7 +386,7 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
       {status.description && (
         <p className="text-gray-600 text-sm mb-4">{status.description}</p>
       )}
-      
+
       <div
         className={`
           h-[calc(100vh-8rem)] rounded-lg border-2 border-dashed overflow-auto p-4
@@ -359,8 +397,8 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
           }
         `}
       >
-        <SortableContext 
-          items={status.Task.map(task => task.id.toString())} 
+        <SortableContext
+          items={status.Task.map(task => task.id.toString())}
           strategy={verticalListSortingStrategy}
         >
           {status.Task.length === 0 && (
@@ -375,9 +413,15 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
               {isOver ? 'Drop here!' : 'Drop tasks here'}
             </div>
           )}
-          
+
           {status.Task.map((task) => (
-            <DraggableCard key={task.id} id={task.id} content={task} onEdit={onEditTask} />
+            <DraggableCard
+              key={task.id}
+              id={task.id}
+              content={task}
+              onEdit={onEditTask}
+              onDelete={onDeleteTask}
+            />
           ))}
         </SortableContext>
 
@@ -393,31 +437,33 @@ export default function DragDropSections() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // tRPC queries and utils
   const { data: taskStatuses, refetch: refetchStatuses } = api.task.getAllTaskStatuses.useQuery();
   const utils = api.useUtils();
-  
+
   // tRPC mutations
   const createTaskMutation = api.task.createTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-  
+
   const updateTaskMutation = api.task.updateTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-  
+
   const deleteTaskMutation = api.task.deleteTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-  
+
   const updateTaskStatusMutation = api.task.updateTaskStatus.useMutation({
     onError: () => {
       // If the mutation fails, refetch to restore correct state
@@ -456,6 +502,12 @@ export default function DragDropSections() {
     setIsEditDialogOpen(true);
   };
 
+  // Function to handle delete task
+  const handleDeleteTask = (task: Task) => {
+    setDeletingTask(task);
+    setIsDeleteDialogOpen(true);
+  };
+
   // Function to save task changes
   const handleSaveTask = async (id: number, title: string, description: string | null) => {
     try {
@@ -470,8 +522,8 @@ export default function DragDropSections() {
     }
   };
 
-  // Function to delete task
-  const handleDeleteTask = async (id: number) => {
+  // Function to confirm delete task
+  const handleConfirmDelete = async (id: number) => {
     try {
       await deleteTaskMutation.mutateAsync({ id });
       console.log(`Deleted task ${id}`);
@@ -514,7 +566,7 @@ export default function DragDropSections() {
     // Find the current status of the dragged task
     let currentStatus: TaskStatus | undefined;
     let draggedTask: Task | undefined;
-    
+
     for (const status of taskStatuses) {
       const task = status.Task.find(t => t.id === activeTaskId);
       if (task) {
@@ -528,14 +580,14 @@ export default function DragDropSections() {
 
     // Determine target status
     let targetStatusId: number;
-    
+
     // Check if dropping directly on a status
     const directStatusMatch = taskStatuses.find(s => s.id.toString() === overId);
     if (directStatusMatch) {
       targetStatusId = directStatusMatch.id;
     } else {
       // Find status by task
-      const targetStatus = taskStatuses.find(status => 
+      const targetStatus = taskStatuses.find(status =>
         status.Task.some(task => task.id.toString() === overId)
       );
       if (!targetStatus) return;
@@ -548,7 +600,7 @@ export default function DragDropSections() {
     // Update the cache optimistically
     utils.task.getAllTaskStatuses.setData(undefined, (oldData) => {
       if (!oldData) return oldData;
-      
+
       return oldData.map(status => {
         if (status.id === currentStatus.id) {
           // Remove task from current status
@@ -600,6 +652,7 @@ export default function DragDropSections() {
             isOver={overId === status.id.toString()}
             onCreateTask={createNewTask}
             onEditTask={handleEditTask}
+            onDeleteTask={handleDeleteTask}
           />
         ))}
       </div>
@@ -616,7 +669,16 @@ export default function DragDropSections() {
           setEditingTask(null);
         }}
         onSave={handleSaveTask}
-        onDelete={handleDeleteTask}
+      />
+
+      <DeleteTaskDialog
+        task={deletingTask}
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setDeletingTask(null);
+        }}
+        onDelete={handleConfirmDelete}
       />
     </DndContext>
   );
