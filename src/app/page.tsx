@@ -145,13 +145,13 @@ function DragOverlayCard({ content }: { content: Task }) {
 }
 
 // Edit Task Dialog Component
-function EditTaskDialog({
-  task,
-  isOpen,
-  onClose,
-  onSave,
-  onDelete
-}: {
+function EditTaskDialog({ 
+  task, 
+  isOpen, 
+  onClose, 
+  onSave, 
+  onDelete 
+}: { 
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
@@ -184,73 +184,83 @@ function EditTaskDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Edit Task</DialogTitle>
-          <DialogDescription>
-            Make changes to your task here. Click save when you're done.
+      <DialogContent className="sm:max-w-[600px] p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-8 pt-8 pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+          <DialogTitle className="text-2xl font-semibold text-gray-900">
+            Edit Task
+          </DialogTitle>
+          <DialogDescription className="text-gray-600 mt-2">
+            Make changes to your task here. All fields are automatically saved.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
-              Title
+        
+        <div className="px-8 py-6 space-y-6">
+          <div className="space-y-3">
+            <Label htmlFor="title" className="text-sm font-semibold text-gray-700">
+              Task Title
             </Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="col-span-3"
-              placeholder="Task title"
+              className="h-12 text-lg border-2 focus:border-blue-500 transition-colors"
+              placeholder="Enter your task title..."
             />
           </div>
-
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right mt-2">
+          
+          <div className="space-y-3">
+            <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
               Description
             </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="col-span-3"
-              placeholder="Task description (optional)"
-              rows={3}
+              className="min-h-[120px] text-base border-2 focus:border-blue-500 transition-colors resize-none"
+              placeholder="Add a description for your task..."
+              rows={5}
             />
           </div>
         </div>
 
-        <DialogFooter className="flex justify-between">
+        <DialogFooter className="px-8 py-6 bg-gray-50 border-t flex-row justify-between items-center">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
+              <Button variant="destructive" size="lg" className="h-11 px-6">
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                Delete Task
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="sm:max-w-[500px]">
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your task.
+                <AlertDialogTitle className="text-xl">Delete this task?</AlertDialogTitle>
+                <AlertDialogDescription className="text-base text-gray-600 mt-2">
+                  This action cannot be undone. The task "{task.title}" will be permanently removed from your project.
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
-                  Delete
+              <AlertDialogFooter className="gap-3 mt-6">
+                <AlertDialogCancel className="h-11 px-6">Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDelete}
+                  className="h-11 px-6 bg-red-600 hover:bg-red-700"
+                >
+                  Delete Task
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose} size="lg" className="h-11 px-6">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!title.trim()}>
-              Save changes
+            <Button 
+              onClick={handleSave} 
+              disabled={!title.trim()}
+              size="lg" 
+              className="h-11 px-8 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
+            >
+              Save Changes
             </Button>
           </div>
         </DialogFooter>
@@ -260,7 +270,7 @@ function EditTaskDialog({
 }
 
 // Create Task Card Component
-function CreateTaskCard({ onCreateTask, statusId }: {
+function CreateTaskCard({ onCreateTask, statusId }: { 
   onCreateTask: (title: string, statusId: number) => void;
   statusId: number;
 }) {
@@ -338,7 +348,7 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
       {status.description && (
         <p className="text-gray-600 text-sm mb-4">{status.description}</p>
       )}
-
+      
       <div
         className={`
           h-[calc(100vh-8rem)] rounded-lg border-2 border-dashed overflow-auto p-4
@@ -349,8 +359,8 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
           }
         `}
       >
-        <SortableContext
-          items={status.Task.map(task => task.id.toString())}
+        <SortableContext 
+          items={status.Task.map(task => task.id.toString())} 
           strategy={verticalListSortingStrategy}
         >
           {status.Task.length === 0 && (
@@ -365,7 +375,7 @@ function DroppableSection({ status, isOver, onCreateTask, onEditTask }: Droppabl
               {isOver ? 'Drop here!' : 'Drop tasks here'}
             </div>
           )}
-
+          
           {status.Task.map((task) => (
             <DraggableCard key={task.id} id={task.id} content={task} onEdit={onEditTask} />
           ))}
@@ -386,29 +396,29 @@ export default function DragDropSections() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // tRPC queries and utils
-  const { data: taskStatuses, refetch: refetchStatuses } = api.tasks.getAllTaskStatuses.useQuery();
+  const { data: taskStatuses, refetch: refetchStatuses } = api.task.getAllTaskStatuses.useQuery();
   const utils = api.useUtils();
-
+  
   // tRPC mutations
-  const createTaskMutation = api.tasks.createTask.useMutation({
+  const createTaskMutation = api.task.createTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-
-  const updateTaskMutation = api.tasks.updateTask.useMutation({
+  
+  const updateTaskMutation = api.task.updateTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-
-  const deleteTaskMutation = api.tasks.deleteTask.useMutation({
+  
+  const deleteTaskMutation = api.task.deleteTask.useMutation({
     onSuccess: () => {
       refetchStatuses();
     },
   });
-
-  const updateTaskStatusMutation = api.tasks.updateTaskStatus.useMutation({
+  
+  const updateTaskStatusMutation = api.task.updateTaskStatus.useMutation({
     onError: () => {
       // If the mutation fails, refetch to restore correct state
       refetchStatuses();
@@ -504,7 +514,7 @@ export default function DragDropSections() {
     // Find the current status of the dragged task
     let currentStatus: TaskStatus | undefined;
     let draggedTask: Task | undefined;
-
+    
     for (const status of taskStatuses) {
       const task = status.Task.find(t => t.id === activeTaskId);
       if (task) {
@@ -518,14 +528,14 @@ export default function DragDropSections() {
 
     // Determine target status
     let targetStatusId: number;
-
+    
     // Check if dropping directly on a status
     const directStatusMatch = taskStatuses.find(s => s.id.toString() === overId);
     if (directStatusMatch) {
       targetStatusId = directStatusMatch.id;
     } else {
       // Find status by task
-      const targetStatus = taskStatuses.find(status =>
+      const targetStatus = taskStatuses.find(status => 
         status.Task.some(task => task.id.toString() === overId)
       );
       if (!targetStatus) return;
@@ -536,9 +546,9 @@ export default function DragDropSections() {
     if (currentStatus.id === targetStatusId) return;
 
     // Update the cache optimistically
-    utils.tasks.getAllTaskStatuses.setData(undefined, (oldData) => {
+    utils.task.getAllTaskStatuses.setData(undefined, (oldData) => {
       if (!oldData) return oldData;
-
+      
       return oldData.map(status => {
         if (status.id === currentStatus.id) {
           // Remove task from current status
